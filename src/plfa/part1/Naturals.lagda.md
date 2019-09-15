@@ -81,7 +81,8 @@ successor of two; and so on.
 Write out `7` in longhand.
 
 ```
--- Your code goes here
+seven : ℕ
+seven = suc (suc (suc (suc (suc (suc (suc zero))))))
 ```
 
 
@@ -431,7 +432,20 @@ other word for evidence, which we will use interchangeably, is _proof_.
 Compute `3 + 4`, writing out your reasoning as a chain of equations.
 
 ```
--- Your code goes here
+_ =
+  begin
+    3 + 4
+  ≡⟨⟩
+    suc (2 + 4)
+  ≡⟨⟩
+    suc (suc (1 + 4))
+  ≡⟨⟩
+    suc (suc (suc (0 + 4)))
+  ≡⟨⟩
+    suc (suc (suc 4))
+  ≡⟨⟩
+    7
+  ∎
 ```
 
 
@@ -492,7 +506,20 @@ it can easily be inferred from the corresponding term.
 Compute `3 * 4`, writing out your reasoning as a chain of equations.
 
 ```
--- Your code goes here
+_ =
+  begin
+    3 * 4
+  ≡⟨⟩    -- inductive case
+    4 + (2 * 4)
+  ≡⟨⟩    -- inductive case
+    4 + (4 + (1 * 4))
+  ≡⟨⟩    -- inductive case
+    4 + (4 + (4 + (0 * 4)))
+  ≡⟨⟩    -- base case
+    4 + (4 + (4 + 0))
+  ≡⟨⟩    -- simplify
+    12
+  ∎
 ```
 
 
@@ -507,6 +534,9 @@ Check that `3 ^ 4` is `81`.
 
 ```
 -- Your code goes here
+_^_ : ℕ → ℕ → ℕ
+_^_ m zero = 1
+_^_ m (suc n) = m * (m ^ n)
 ```
 
 
@@ -571,7 +601,31 @@ _ =
 Compute `5 ∸ 3` and `3 ∸ 5`, writing out your reasoning as a chain of equations.
 
 ```
--- Your code goes here
+_ =
+  begin
+    5 ∸ 3
+  ≡⟨⟩
+    4 ∸ 2
+  ≡⟨⟩
+    3 ∸ 1
+  ≡⟨⟩
+    2 ∸ 0
+  ≡⟨⟩
+    2
+  ∎
+
+_ =
+  begin
+    3 ∸ 5
+  ≡⟨⟩
+    2 ∸ 4
+  ≡⟨⟩
+    1 ∸ 3
+  ≡⟨⟩
+    0 ∸ 2
+  ≡⟨⟩
+    0
+  ∎
 ```
 
 
@@ -917,7 +971,79 @@ represents a positive natural, and represent zero by `x0 nil`.
 Confirm that these both give the correct answer for zero through four.
 
 ```
--- Your code goes here
+-- Increment binary numbers, without leading zeros.
+inc : Bin → Bin
+inc nil = nil                 -- Base case
+inc (x0 nil) = x1 nil         -- Base case
+inc (x1 nil) = x0 x1 nil      -- If MSB is set, unset & add new set lead bit
+inc (x0 MSBs) = x1 MSBs       -- Inductive: flip zero bits and stop
+inc (x1 MSBs) = x0 (inc MSBs) --            flip one bits and keep flipping
+
+-- inc tests
+inc_zero : inc (x0 nil) ≡ x1 nil
+inc_zero = refl
+
+inc_one : inc (x1 nil) ≡ x0 x1 nil
+inc_one = refl
+
+inc_two : inc (x0 x1 nil) ≡ x1 x1 nil
+inc_two = refl
+
+inc_three : inc (x1 x1 nil) ≡ x0 x0 x1 nil
+inc_three = refl
+
+inc_four : inc (x0 x0 x1 nil) ≡ x1 x0 x1 nil
+inc_four = refl
+
+
+-- Convert ℕ to Bin by incrementing result
+to : ℕ → Bin
+to zero = x0 nil
+to (suc n) = inc (to n)
+
+-- to tests
+to_zero : to 0 ≡ x0 nil
+to_zero = refl
+
+to_one : to 1 ≡ x1 nil
+to_one = refl
+
+to_two : to 2 ≡ x0 x1 nil
+to_two = refl
+
+to_three : to 3 ≡ x1 x1 nil
+to_three = refl
+
+to_four : to 4 ≡ x0 x0 x1 nil
+to_four = refl
+
+
+-- Convert Bin to ℕ by bit shifting
+-- Leading zeros are handled
+from : Bin → ℕ
+from nil = 0                  -- Base case
+from (x0 nil) = 0             -- Base case
+from (x0 b) = 2 * from b      -- Inductive: bitshift left
+from (x1 b) = 2 * from b + 1  --   bitshift but also add one for the set bit
+
+-- from tests
+from_zero : from (x0 nil) ≡ 0
+from_zero = refl
+
+from_one : from (x1 nil) ≡ 1
+from_one = refl
+
+from_two : from (x0 x1 nil) ≡ 2
+from_two = refl
+
+from_three : from (x1 x1 nil) ≡ 3
+from_three = refl
+
+from_four : from (x0 x0 x1 nil) ≡ 4
+from_four = refl
+
+from_leading_zeros_eleven : from (x1 x1 x0 x1 nil) ≡ from (x1 x1 x0 x1 x0 x0 nil)
+from_leading_zeros_eleven = refl
 ```
 
 
