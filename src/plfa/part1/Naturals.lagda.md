@@ -533,7 +533,6 @@ Define exponentiation, which is given by the following equations:
 Check that `3 ^ 4` is `81`.
 
 ```
--- Your code goes here
 _^_ : ℕ → ℕ → ℕ
 _^_ m zero = 1
 _^_ m (suc n) = m * (m ^ n)
