@@ -19,9 +19,11 @@ import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl)
 open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
 open import Relation.Nullary using (¬_)
-open import Data.Product using (_×_; proj₁) renaming (_,_ to ⟨_,_⟩)
-open import Data.Sum using (_⊎_)
+open import Data.Product using (_×_; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
+open import Data.Empty using (⊥)
 open import plfa.part1.Isomorphism using (_≃_; extensionality)
+open import Function using (_∘_)
 ```
 
 
@@ -85,9 +87,15 @@ dependent product is ambiguous.
 
 Show that universals distribute over conjunction:
 ```
-postulate
-  ∀-distrib-× : ∀ {A : Set} {B C : A → Set} →
-    (∀ (x : A) → B x × C x) ≃ (∀ (x : A) → B x) × (∀ (x : A) → C x)
+∀-distrib-× : ∀ {A : Set} {B C : A → Set} →
+  (∀ (x : A) → B x × C x) ≃ (∀ (x : A) → B x) × (∀ (x : A) → C x)
+∀-distrib-× =
+  record
+  { to      =  λ{ f → ⟨ proj₁ ∘ f , proj₂ ∘ f ⟩ }
+  ; from    =  λ{ ⟨ g , h ⟩ → λ x → ⟨ g x , h x ⟩ }
+  ; from∘to =  λ x → refl
+  ; to∘from =  λ y → refl
+  }
 ```
 Compare this with the result (`→-distrib-×`) in
 Chapter [Connectives]({{ site.baseurl }}/Connectives/).
@@ -96,12 +104,22 @@ Chapter [Connectives]({{ site.baseurl }}/Connectives/).
 
 Show that a disjunction of universals implies a universal of disjunctions:
 ```
-postulate
-  ⊎∀-implies-∀⊎ : ∀ {A : Set} {B C : A → Set} →
-    (∀ (x : A) → B x) ⊎ (∀ (x : A) → C x)  →  ∀ (x : A) → B x ⊎ C x
+⊎∀-implies-∀⊎ : ∀ {A : Set} {B C : A → Set} →
+  (∀ (x : A) → B x) ⊎ (∀ (x : A) → C x)  →  ∀ (x : A) → B x ⊎ C x
+⊎∀-implies-∀⊎ (inj₁ f) a = inj₁ (f a)
+⊎∀-implies-∀⊎ (inj₂ g) a = inj₂ (g a)
 ```
 Does the converse hold? If so, prove; if not, explain why.
 
+```
+-- This implication is false because the function on the left can return
+-- EITHER a `B x` or a `C x` for some `x`, while the disjoint union on the
+-- right says that we either have a function that for a given `x` returns ONLY `B x`
+-- or a function that for a given `x` returns ONLY `C x`.
+postulate
+  ∀⊎-implies-⊎∀ : ¬(∀ {A : Set} {B C : A → Set} →
+    ∀ (x : A) → B x ⊎ C x → (∀ (x : A) → B x) ⊎ (∀ (x : A) → C x))
+```
 
 #### Exercise `∀-×` (practice)
 
