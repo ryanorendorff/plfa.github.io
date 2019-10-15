@@ -418,6 +418,12 @@ possible arguments of type `Bool ⊎ Tri`:
 ⊎-count (inj₂ aa)     =  3
 ⊎-count (inj₂ bb)     =  4
 ⊎-count (inj₂ cc)     =  5
+
+-- Interesting alternative to bottom for all set levels.
+open import Level using (Level) renaming (zero to lzero; suc to lsuc)
+
+impossible : {ℓ : Level} -> Set (lsuc ℓ)
+impossible {ℓ} = ∀ {A : Set ℓ} -> A
 ```
 
 Sum on types also shares a property with sum on numbers in that it is
