@@ -18,17 +18,17 @@ examples of polymorphic types and higher-order functions.
 
 ```
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl; sym; trans; cong)
+open Eq using (_≡_; refl; sym; trans; cong; inspect)
 open Eq.≡-Reasoning
 open import Data.Bool using (Bool; true; false; T; _∧_; _∨_; not)
 open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_; _≤_; s≤s; z≤n)
 open import Data.Nat.Properties using
-  (+-assoc; +-identityˡ; +-identityʳ; *-assoc; *-identityˡ; *-identityʳ)
+  (+-assoc; +-identityˡ; +-identityʳ; *-assoc; *-identityˡ; *-identityʳ; *-distrib-+; *-distrib-∸; m+n∸m≡n; +-comm)
 open import Relation.Nullary using (¬_; Dec; yes; no)
-open import Data.Product using (_×_; ∃; ∃-syntax) renaming (_,_ to ⟨_,_⟩)
+open import Data.Product using (_×_; ∃; ∃-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
 open import Function using (_∘_)
 open import Level using (Level)
-open import plfa.part1.Isomorphism using (_≃_; _⇔_)
+open import plfa.part1.Isomorphism using (_≃_; _⇔_; extensionality)
 ```
 
 
@@ -354,6 +354,18 @@ reverse of the second appended to the reverse of the first:
 
     reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
 
+```
+reverse-++-distrib : ∀ {A : Set} (xs ys : List A)
+                     → reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
+reverse-++-distrib [] ys rewrite ++-identityʳ (reverse ys) = refl
+reverse-++-distrib (x ∷ xs) ys rewrite
+    --  Append [x] to induction hypothesis
+    cong (_++ [ x ] ) (reverse-++-distrib xs ys)
+    -- (reverse ys ++ reverse xs) ++ [ x ] ≡ reverse ys ++ (reverse xs ++ [ x ])
+  | ++-assoc (reverse ys) (reverse xs) ([ x ])
+  = refl
+```
+
 #### Exercise `reverse-involutive` (recommended)
 
 A function is an _involution_ if when applied twice it acts
@@ -361,6 +373,18 @@ as the identity function.  Show that reverse is an involution:
 
     reverse (reverse xs) ≡ xs
 
+```
+reverse-involutive : ∀ {A : Set} (xs : List A)
+                     → reverse (reverse xs) ≡ xs
+reverse-involutive [] = refl
+reverse-involutive (x ∷ xs) rewrite
+    -- reverse (reverse xs ++ [ x ]) ≡ reverse [ x ] ++ reverse (reverse xs)
+    reverse-++-distrib (reverse xs) [ x ]
+    -- Induction hypothesis: reverse (reverse xs) ≡ xs
+  | reverse-involutive xs
+    -- By definitions: reverse [ x ] ++ xs ≡ x ∷ xs
+  = refl
+```
 
 ## Faster reverse
 
@@ -410,7 +434,7 @@ hypothesis and associativity of append.  When we invoke the inductive hypothesis
 the second argument actually becomes *larger*, but this is not a problem because
 the argument on which we induct becomes *smaller*.
 
-Generalising on an auxiliary argument, which becomes larger as the argument on
+Generalising on an foldr-over-++-identity^eiliary argument, which becomes larger as the argument on
 which we recurse or induct becomes smaller, is a common trick. It belongs in
 your quiver of arrows, ready to slay the right problem.
 
@@ -528,7 +552,15 @@ Prove that the map of a composition is equal to the composition of two maps:
 The last step of the proof requires extensionality.
 
 ```
--- Your code goes here
+map-compose : ∀ {A B C : Set} {f : A → B} {g : B → C}
+  → map (g ∘ f) ≡ map g ∘ map f
+map-compose = extensionality map-compose'
+  where
+    map-compose' : ∀ {A B C : Set} {f : A → B} {g : B → C}
+                   → (l : List A)
+                   → map (g ∘ f) l ≡ (map g ∘ map f) l
+    map-compose' [] = refl
+    map-compose' {A} {B} {C} {f} {g} (x ∷ xs) = cong (_∷_ ((g ∘ f) x)) (map-compose' xs)
 ```
 
 #### Exercise `map-++-distribute` (practice)
@@ -538,7 +570,12 @@ Prove the following relationship between map and append:
     map f (xs ++ ys) ≡ map f xs ++ map f ys
 
 ```
--- Your code goes here
+map-++-distribute : ∀ {A B : Set} (f : A → B)
+                    → (xs : List A)
+                    → (ys : List A)
+                    → map f (xs ++ ys) ≡ map f xs ++ map f ys
+map-++-distribute f [] ys = refl
+map-++-distribute f (x ∷ xs) ys = cong (_∷_ (f x)) (map-++-distribute f xs ys)
 ```
 
 #### Exercise `map-Tree` (practice)
@@ -555,7 +592,9 @@ Define a suitable map operator over trees:
     map-Tree : ∀ {A B C D : Set} → (A → C) → (B → D) → Tree A B → Tree C D
 
 ```
--- Your code goes here
+map-Tree : ∀ {A B C D : Set} → (A → C) → (B → D) → Tree A B → Tree C D
+map-Tree fₗ fₙ (leaf l) = leaf (fₗ l)
+map-Tree fₗ fₙ (node tₗ n tᵣ) = node (map-Tree fₗ fₙ tₗ) (fₙ n) (map-Tree fₗ fₙ tᵣ)
 ```
 
 ## Fold {#Fold}
@@ -638,6 +677,18 @@ For example:
 
 ```
 -- Your code goes here
+product : List ℕ → ℕ
+product = foldr _*_ 1
+
+_ : product [ 1 , 2 , 3 , 4 ] ≡ 24
+_ =
+  begin
+    product [ 1 , 2 , 3 , 4 ]
+  ≡⟨⟩
+    foldr _*_ 1 [ 1 , 2 , 3 , 4 ]
+  ≡⟨⟩
+    24
+  ∎
 ```
 
 #### Exercise `foldr-++` (recommended)
@@ -647,7 +698,10 @@ Show that fold and append are related as follows:
     foldr _⊗_ e (xs ++ ys) ≡ foldr _⊗_ (foldr _⊗_ e ys) xs
 
 ```
--- Your code goes here
+foldr-++ : ∀ {A B : Set} (_⊗_ : A → B → B) (e : B) (xs ys : List A)
+          → foldr _⊗_ e (xs ++ ys) ≡ foldr _⊗_ (foldr _⊗_ e ys) xs
+foldr-++ _⊗_ e [] ys = refl
+foldr-++ _⊗_ e (x ∷ xs) ys = cong (_⊗_ x) (foldr-++ _⊗_ e xs ys)
 ```
 
 #### Exercise `foldr-∷` (practice)
@@ -658,11 +712,39 @@ Show
 
 Show as a consequence of `foldr-++` above that
 
-    xs ++ ys ≡ foldr _∷_ ys xs    
+    xs ++ ys ≡ foldr _∷_ ys xs
 
 
 ```
--- Your code goes here
+-- Proved by rewrite only with foldr-++
+foldr-identityᵉ : ∀ {A : Set} (xs : List A) → foldr _∷_ [] xs ≡ xs
+foldr-identityᵉ [] = refl
+foldr-identityᵉ (x ∷ xs) = cong (_∷_ x) (foldr-identityᵉ xs)
+
+foldr-∷ : ∀ {A : Set} (xs ys : List A) → xs ++ ys ≡ foldr _∷_ ys xs
+foldr-∷ {A} xs ys rewrite
+    sym (foldr-identityᵉ ys)
+  | sym (foldr-++ _∷_ [] xs ys)
+  | foldr-identityᵉ ys
+  | foldr-identityᵉ (xs ++ ys)
+  = refl
+
+-- Proved by lemma on empty initial being equivalent to second part of ++
+foldr-over-++-identityᵉ : ∀ {A : Set} (xs ys : List A)
+                        → foldr _∷_ [] (xs ++ ys) ≡ foldr _∷_ ys xs
+foldr-over-++-identityᵉ [] ys = foldr-identityᵉ ys
+foldr-over-++-identityᵉ (x ∷ xs) ys = cong (_∷_ x) (foldr-over-++-identityᵉ xs ys)
+
+foldr-∷′ : ∀ {A : Set} (xs ys : List A) → xs ++ ys ≡ foldr _∷_ ys xs
+foldr-∷′ {A} xs ys rewrite
+    sym (foldr-over-++-identityᵉ xs ys)
+  | foldr-identityᵉ (xs ++ ys)
+  = refl
+
+-- Proved by simple induction
+foldr-∷′′ : ∀ {A : Set} (xs ys : List A) → xs ++ ys ≡ foldr _∷_ ys xs
+foldr-∷′′ [] ys = refl
+foldr-∷′′ (x ∷ xs) ys = cong (_∷_ x) (foldr-∷ xs ys)
 ```
 
 #### Exercise `map-is-foldr` (practice)
@@ -674,7 +756,14 @@ Show that map can be defined using fold:
 The proof requires extensionality.
 
 ```
--- Your code goes here
+map-is-foldr : ∀ {A B : Set} {f : A → B}
+               → map f ≡ foldr {A} (λ x xs → f x ∷ xs) []
+map-is-foldr {A} {B} {f} = extensionality (map-is-foldr′ f)
+  where
+    map-is-foldr′ : ∀ {A B : Set} (f : A → B) → (xs : List A)
+                  → map f xs ≡ foldr (λ x xs → f x ∷ xs) [] xs
+    map-is-foldr′ f [] = refl
+    map-is-foldr′ f (x ∷ xs) = cong (_∷_ (f x)) (map-is-foldr′ f xs)
 ```
 
 #### Exercise `fold-Tree` (practice)
@@ -685,7 +774,9 @@ Define a suitable fold function for the type of trees given earlier:
 
 
 ```
--- Your code goes here
+fold-Tree : ∀ {A B C : Set} → (A → C) → (C → B → C → C) → Tree A B → C
+fold-Tree fₗ _ (leaf l) = fₗ l
+fold-Tree fₗ fₙ (node tₗ x tᵣ) = fₙ (fold-Tree fₗ fₙ tₗ) x (fold-Tree fₗ fₙ tᵣ)
 ```
 
 #### Exercise `map-is-fold-Tree` (practice)
@@ -693,7 +784,26 @@ Define a suitable fold function for the type of trees given earlier:
 Demonstrate an analogue of `map-is-foldr` for the type of trees.
 
 ```
--- Your code goes here
+-- Define the map-Tree function using fold instead of recursively
+map-Tree-by-fold : ∀ {A B C D : Set} → (A → C) → (B → D)
+                 → Tree A B → Tree C D
+map-Tree-by-fold fₗ fₙ = fold-Tree (λ l → leaf (fₗ l))
+                                   (λ tₗ n tᵣ → node tₗ (fₙ n) tᵣ)
+
+-- Prove both map-Tree methods are equivalent in the η-reduced form.
+map-is-fold-Tree : ∀ {A B C D : Set} (fₗ : A → C) → (fₙ : B → D)
+                 → map-Tree fₗ fₙ ≡ map-Tree-by-fold fₗ fₙ
+map-is-fold-Tree fₗ fᵣ = extensionality (map-is-fold-Tree′ fₗ fᵣ)
+  where
+    map-is-fold-Tree′ : ∀ {A B C D : Set} (fₗ : A → C) → (fₙ : B → D)
+                       → (t : Tree A B)
+                       → map-Tree fₗ fₙ t ≡ map-Tree-by-fold fₗ fₙ t
+    map-is-fold-Tree′ fₗ fₙ (leaf _) = refl
+    map-is-fold-Tree′ fₗ fₙ t@(node tₗ n tᵣ) with inspect (map-Tree-by-fold fₗ fₙ) t
+    ... | Eq.[ eq ] rewrite
+                      map-is-fold-Tree′ fₗ fₙ tₗ -- Induction hyp. on left node
+                    | map-is-fold-Tree′ fₗ fₙ tᵣ -- Induction hyp. on right node
+                      = refl
 ```
 
 #### Exercise `sum-downFrom` (stretch)
@@ -714,6 +824,44 @@ equal to `n * (n ∸ 1) / 2`:
 
     sum (downFrom n) * 2 ≡ n * (n ∸ 1)
 
+```
+-- I do not know why but this solves automatically which is incredibly
+-- convenient.
+n*[2+[n+1]]≡n*[1*n] : (n : ℕ) → n * (2 + (n ∸ 1)) ≡ n * (1 + n)
+n*[2+[n+1]]≡n*[1*n] zero = refl
+n*[2+[n+1]]≡n*[1*n] (suc n) = refl
+
+-- Unpack the sum, refold it when induction hypothesis appears, and then use
+-- the magic lemma from above.
+sum-downFrom : ∀ (n : ℕ) → sum (downFrom n) * 2 ≡ n * (n ∸ 1)
+sum-downFrom zero = refl
+sum-downFrom (suc n) =
+  begin
+    sum (downFrom (suc n)) * 2
+  ≡⟨⟩
+    sum (n ∷ downFrom n) * 2
+  ≡⟨⟩
+    foldr _+_ 0 (n ∷ downFrom n) * 2
+  ≡⟨⟩
+    (n + foldr _+_ 0 (downFrom n)) * 2
+  ≡⟨ proj₂ *-distrib-+ 2 n (foldr _+_ zero (downFrom n)) ⟩
+    n * 2 + foldr _+_ 0 (downFrom n) * 2
+  ≡⟨⟩
+    n * 2 + sum (downFrom n) * 2
+  ≡⟨ cong (n * 2 +_) (sum-downFrom n) ⟩
+    n * 2 + n * (n ∸ 1)
+  ≡⟨ sym (proj₁ *-distrib-+ n 2 (n ∸ 1)) ⟩
+    n * (2 + (n ∸ 1))
+  ≡⟨ n*[2+[n+1]]≡n*[1*n] n ⟩
+    n * (1 + n)
+  ≡⟨ proj₁ *-distrib-+ n 1 n ⟩
+    n * 1 + n * n
+  ≡⟨ cong (λ x → x + n * n) (*-identityʳ n) ⟩
+    n + n * n
+  ≡⟨⟩
+    suc n * (suc n ∸ 1)
+  ∎
+```
 
 ## Monoids
 
@@ -791,9 +939,9 @@ foldr-monoid _⊗_ e ⊗-monoid (x ∷ xs) y =
 
 In a previous exercise we showed the following.
 ```
-postulate
-  foldr-++ : ∀ {A : Set} (_⊗_ : A → A → A) (e : A) (xs ys : List A) → 
-    foldr _⊗_ e (xs ++ ys) ≡ foldr _⊗_ (foldr _⊗_ e ys) xs
+-- postulate
+--   foldr-++ : ∀ {A : Set} (_⊗_ : A → A → A) (e : A) (xs ys : List A) →
+--     foldr _⊗_ e (xs ++ ys) ≡ foldr _⊗_ (foldr _⊗_ e ys) xs
 ```
 
 As a consequence, using a previous exercise, we have the following:
@@ -819,7 +967,9 @@ operations associate to the left rather than the right.  For example:
     foldl _⊗_ e [ x , y , z ]  =  ((e ⊗ x) ⊗ y) ⊗ z
 
 ```
--- Your code goes here
+foldl : ∀ {A B : Set} → (B → A → B) → B → List A → B
+foldl _⊗_ e [] = e
+foldl _⊗_ e (x ∷ xs) = foldl _⊗_ (e ⊗ x) xs
 ```
 
 
@@ -829,7 +979,56 @@ Show that if `_⊗_` and `e` form a monoid, then `foldr _⊗_ e` and
 `foldl _⊗_ e` always compute the same result.
 
 ```
--- Your code goes here
+-- Similar to foldr-monoid except the binary operator is pulled out
+-- to the left
+foldl-monoid : ∀ {A : Set} (_⊗_ : A → A → A) (e : A) → IsMonoid _⊗_ e →
+               ∀ (xs : List A) (y : A)
+               → foldl _⊗_ y xs ≡ y ⊗ foldl _⊗_ e xs
+foldl-monoid _⊗_ e ⊗-monoid [] y = sym (identityʳ ⊗-monoid y)
+foldl-monoid _⊗_ e ⊗-monoid (x ∷ xs) y =
+  begin
+    foldl _⊗_ y (x ∷ xs)
+  ≡⟨⟩
+    foldl _⊗_ (y ⊗ x) xs
+  ≡⟨ foldl-monoid _⊗_ e ⊗-monoid xs (y ⊗ x) ⟩
+    (y ⊗ x) ⊗ foldl _⊗_ e xs
+  ≡⟨ assoc ⊗-monoid y x (foldl _⊗_ e xs) ⟩
+    y ⊗ (x ⊗ foldl _⊗_ e xs)
+  ≡⟨ sym (cong (_⊗_ y) (foldl-monoid _⊗_ e ⊗-monoid xs x)) ⟩
+    y ⊗ foldl _⊗_ x xs
+  ≡⟨ cong (λ r → y ⊗ foldl _⊗_ r xs) (sym (identityˡ ⊗-monoid x)) ⟩
+    y ⊗ foldl _⊗_ (e ⊗ x) xs
+  ≡⟨⟩
+    y ⊗ foldl _⊗_ e (x ∷ xs)
+  ∎
+
+
+foldr-monoid-foldl′ : ∀ {A : Set} (_⊗_ : A → A → A) (e : A)
+                    → IsMonoid _⊗_ e → (xs : List A)
+                    → foldr _⊗_ e xs ≡ foldl _⊗_ e xs
+foldr-monoid-foldl′ _⊗_ e monoid-⊗ [] = refl
+foldr-monoid-foldl′ _⊗_ e monoid-⊗ (x ∷ xs) =
+  begin
+    foldr _⊗_ e (x ∷ xs)
+  ≡⟨⟩
+    (x ⊗ foldr _⊗_ e xs)
+  ≡⟨ cong (x ⊗_) (foldr-monoid-foldl′ _⊗_ e monoid-⊗ xs) ⟩
+    (x ⊗ foldl _⊗_ e xs)
+  ≡⟨ sym (foldl-monoid _⊗_ e monoid-⊗ xs x) ⟩
+    foldl _⊗_ x xs
+  ≡⟨ sym (cong (λ z → foldl _⊗_ z xs) (identityˡ monoid-⊗ x)) ⟩
+    foldl _⊗_ (e ⊗ x) xs
+  ≡⟨⟩
+    foldl _⊗_ e (x ∷ xs)
+  ∎
+
+-- Prompt seemed to imply that we wanted to verify that the fold
+-- functions are extensionally equal for a monoid, hence this proof.
+foldr-monoid-foldl : ∀ {A : Set} (_⊗_ : A → A → A) (e : A)
+                   → IsMonoid _⊗_ e
+                   → foldr _⊗_ e ≡ foldl _⊗_ e
+foldr-monoid-foldl _⊗_ e monoid-⊗ = extensionality
+                                    (foldr-monoid-foldl′ _⊗_ e monoid-⊗)
 ```
 
 
@@ -1062,7 +1261,7 @@ data merge {A : Set} : (xs ys zs : List A) → Set where
     → merge xs ys zs
       --------------------------
     → merge xs (y ∷ ys) (y ∷ zs)
-```    
+```
 
 For example,
 ```
