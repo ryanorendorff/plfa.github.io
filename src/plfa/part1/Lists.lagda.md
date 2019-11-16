@@ -26,6 +26,7 @@ open import Data.Nat.Properties using
   (+-assoc; +-identityˡ; +-identityʳ; *-assoc; *-identityˡ; *-identityʳ; *-distrib-+; *-distrib-∸; m+n∸m≡n; +-comm)
 open import Relation.Nullary using (¬_; Dec; yes; no)
 open import Data.Product using (_×_; ∃; ∃-syntax; proj₁; proj₂) renaming (_,_ to ⟨_,_⟩)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function using (_∘_)
 open import Level using (Level)
 open import plfa.part1.Isomorphism using (_≃_; _⇔_; extensionality)
@@ -1119,7 +1120,7 @@ A predicate holds for every element of one list appended to another if and
 only if it holds for every element of both lists:
 ```
 All-++-⇔ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
-  All P (xs ++ ys) ⇔ (All P xs × All P ys)
+            All P (xs ++ ys) ⇔ (All P xs × All P ys)
 All-++-⇔ xs ys =
   record
     { to       =  to xs ys
@@ -1146,7 +1147,34 @@ replacement for `_×_`.  As a consequence, demonstrate an equivalence relating
 `_∈_` and `_++_`.
 
 ```
--- Your code goes here
+Any-++-⇔ : ∀ {A : Set} {P : A → Set} (xs ys : List A) →
+            Any P (xs ++ ys) ⇔ (Any P xs ⊎ Any P ys)
+Any-++-⇔ xs ys =
+  record
+    { to = to xs ys
+    ; from = from xs ys
+    }
+  where
+
+    to : ∀ {A : Set} {P : A → Set} (xs ys : List A)
+          → Any P (xs ++ ys) → Any P xs ⊎ Any P ys
+    to [] ys Pys = inj₂ Pys
+    to (x ∷ xs) ys (here Px) = inj₁ (here Px)
+    to (x ∷ xs) ys (there Pxs++ys) with to xs ys Pxs++ys
+    ...                             | inj₁ Pxs = inj₁ (there Pxs)
+    ...                             | inj₂ Pys = inj₂ Pys
+
+
+    from : ∀ {A : Set} {P : A → Set} (xs ys : List A)
+            → Any P xs ⊎ Any P ys → Any P (xs ++ ys)
+    from [] ys (inj₂ y) = y
+    from (x ∷ xs) ys (inj₁ (here Px)) = here Px
+    from (x ∷ xs) ys (inj₁ (there Pxs)) = there (from xs ys (inj₁ Pxs))
+    from (x ∷ xs) ys (inj₂ Pys) = there (from xs ys (inj₂ Pys))
+
+distr-∈-over-++ : ∀ {A : Set} {x : A} → (xs : List A) → (ys : List A)
+                  → (x ∈ (xs ++ ys)) ⇔ ((x ∈ xs) ⊎ (x ∈ ys))
+distr-∈-over-++ = Any-++-⇔
 ```
 
 #### Exercise `All-++-≃` (stretch)
@@ -1154,7 +1182,39 @@ replacement for `_×_`.  As a consequence, demonstrate an equivalence relating
 Show that the equivalence `All-++-⇔` can be extended to an isomorphism.
 
 ```
--- Your code goes here
+
+-- We use a module here because the type signatures are otherwise unreadable. T_T
+module All-++-iso {A : Set} {P : A → Set} where
+
+  All-++-≃ : ∀ (xs ys : List A) → (All P (xs ++ ys) ≃ (All P xs × All P ys))
+  All-++-≃ xs ys =
+    record
+      { to = to xs ys
+      ; from = from xs ys
+      ; from∘to = from∘to xs ys
+      ; to∘from = to∘from xs ys
+      }
+    where
+      to : ∀ (xs ys : List A) → All P (xs ++ ys) → (All P xs × All P ys)
+      to [] ys Pys = ⟨ [] , Pys ⟩
+      to (x ∷ xs) ys (Px ∷ Pxs++ys) with to xs ys Pxs++ys
+      ... | ⟨ Pxs , Pys ⟩ = ⟨ Px ∷ Pxs , Pys ⟩
+
+      from : (xs ys : List A) → All P xs × All P ys → All P (xs ++ ys)
+      from [] ys ⟨ [] , Pys ⟩ = Pys
+      from (x ∷ xs) ys ⟨ Px ∷ Pxs , Pys ⟩ =  Px ∷ from xs ys ⟨ Pxs , Pys ⟩
+
+      from∘to : ∀ (xs ys : List A) → (Allxs++ys : All P (xs ++ ys))
+                → from xs ys (to xs ys Allxs++ys) ≡ Allxs++ys
+      from∘to [] ys′ _ = refl
+      from∘to (x ∷ xs′) ys′ (p ∷ ps) with from∘to xs′ ys′ ps
+      ... | indHypothesis = cong (p ∷_ ) indHypothesis
+
+      to∘from : ∀ (xs ys : List A) → (Allxs×ys : All P xs × All P ys)
+                → to xs ys (from xs ys Allxs×ys) ≡ Allxs×ys
+      to∘from [] ys ⟨ [] , Pys ⟩ = refl
+      to∘from (x ∷ xs) ys ⟨ Px ∷ Pxs , Pys ⟩ with (to∘from xs ys ⟨ Pxs , Pys ⟩ )
+      ... | indHypothesis rewrite indHypothesis = refl
 ```
 
 #### Exercise `¬Any≃All¬` (recommended)
