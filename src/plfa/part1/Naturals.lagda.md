@@ -972,76 +972,74 @@ Confirm that these both give the correct answer for zero through four.
 ```
 -- Increment binary numbers, without leading zeros.
 inc : Bin → Bin
-inc nil = nil                 -- Base case
-inc (x0 nil) = x1 nil         -- Base case
-inc (x1 nil) = x0 x1 nil      -- If MSB is set, unset & add new set lead bit
-inc (x0 MSBs) = x1 MSBs       -- Inductive: flip zero bits and stop
-inc (x1 MSBs) = x0 (inc MSBs) --            flip one bits and keep flipping
+inc ⟨⟩ = ⟨⟩                 -- Base case
+inc (⟨⟩ I) = ⟨⟩ I O         -- If MSB is set, unset & add new set lead bit
+inc (MSBs O) = MSBs I       -- Inductive: flip zero bits and stop
+inc (MSBs I) = (inc MSBs) O --            flip one bits and keep flipping
 
--- inc tests
-inc_zero : inc (x0 nil) ≡ x1 nil
+-- -- inc tests
+inc_zero : inc (⟨⟩ O) ≡ ⟨⟩ I
 inc_zero = refl
 
-inc_one : inc (x1 nil) ≡ x0 x1 nil
+inc_one : inc (⟨⟩ I) ≡ ⟨⟩ I O
 inc_one = refl
 
-inc_two : inc (x0 x1 nil) ≡ x1 x1 nil
+inc_two : inc (⟨⟩ I O) ≡ ⟨⟩ I I
 inc_two = refl
 
-inc_three : inc (x1 x1 nil) ≡ x0 x0 x1 nil
+inc_three : inc (⟨⟩ I I) ≡ ⟨⟩ I O O
 inc_three = refl
 
-inc_four : inc (x0 x0 x1 nil) ≡ x1 x0 x1 nil
+inc_four : inc (⟨⟩ I O O) ≡ ⟨⟩ I O I
 inc_four = refl
 
 
 -- Convert ℕ to Bin by incrementing result
 to : ℕ → Bin
-to zero = x0 nil
+to zero = ⟨⟩ O
 to (suc n) = inc (to n)
 
 -- to tests
-to_zero : to 0 ≡ x0 nil
+to_zero : to 0 ≡ ⟨⟩ O
 to_zero = refl
 
-to_one : to 1 ≡ x1 nil
+to_one : to 1 ≡ ⟨⟩ I
 to_one = refl
 
-to_two : to 2 ≡ x0 x1 nil
+to_two : to 2 ≡ ⟨⟩ I O
 to_two = refl
 
-to_three : to 3 ≡ x1 x1 nil
+to_three : to 3 ≡ ⟨⟩ I I
 to_three = refl
 
-to_four : to 4 ≡ x0 x0 x1 nil
+to_four : to 4 ≡ ⟨⟩ I O O
 to_four = refl
 
 
 -- Convert Bin to ℕ by bit shifting
 -- Leading zeros are handled
 from : Bin → ℕ
-from nil = 0                  -- Base case
-from (x0 nil) = 0             -- Base case
-from (x0 b) = 2 * from b      -- Inductive: bitshift left
-from (x1 b) = 2 * from b + 1  --   bitshift but also add one for the set bit
+from ⟨⟩ = 0                  -- Base case
+from (b O) = 2 * from b      -- Inductive: bitshift left
+from (b I) = 2 * from b + 1  --   bitshift but also add one for the set bit
 
 -- from tests
-from_zero : from (x0 nil) ≡ 0
+from_zero : from (⟨⟩ O) ≡ 0
 from_zero = refl
 
-from_one : from (x1 nil) ≡ 1
+from_one : from (⟨⟩ I) ≡ 1
 from_one = refl
 
-from_two : from (x0 x1 nil) ≡ 2
+from_two : from (⟨⟩ I O) ≡ 2
 from_two = refl
 
-from_three : from (x1 x1 nil) ≡ 3
+from_three : from (⟨⟩ I I) ≡ 3
 from_three = refl
 
-from_four : from (x0 x0 x1 nil) ≡ 4
+from_four : from (⟨⟩ I O O) ≡ 4
 from_four = refl
 
-from_leading_zeros_eleven : from (x1 x1 x0 x1 nil) ≡ from (x1 x1 x0 x1 x0 x0 nil)
+from_leading_zeros_eleven : from (⟨⟩ I O I I) ≡ from (⟨⟩ O O I O I I)
 from_leading_zeros_eleven = refl
 ```
 
