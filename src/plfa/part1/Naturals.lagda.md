@@ -8,6 +8,7 @@ next      : /Induction/
 
 ```
 module plfa.part1.Naturals where
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _^_; _∸_)
 ```
 
 The night sky holds more stars than I can count, though fewer than five
@@ -45,11 +46,10 @@ as a pair of inference rules:
     suc m : ℕ
 
 And here is the definition in Agda:
-```
-data ℕ : Set where
-  zero : ℕ
-  suc  : ℕ → ℕ
-```
+
+    data ℕ : Set where
+      zero : ℕ
+      suc  : ℕ → ℕ
 
 Here `ℕ` is the name of the *datatype* we are defining,
 and `zero` and `suc` (short for *successor*) are the
@@ -235,9 +235,9 @@ code, with the exception of one special kind of comment, called a
 _pragma_, which is enclosed between `{-#` and `#-}`.
 
 Including the line
-```
-{-# BUILTIN NATURAL ℕ #-}
-```
+
+    {-# BUILTIN NATURAL ℕ #-}
+
 tells Agda that `ℕ` corresponds to the natural numbers, and hence one
 is permitted to type `0` as shorthand for `zero`, `1` as shorthand for
 `suc zero`, `2` as shorthand for `suc (suc zero)`, and so on.  The
@@ -303,11 +303,11 @@ instances of addition and multiplication can be specified in
 just a couple of lines.
 
 Here is the definition of addition in Agda:
-```
-_+_ : ℕ → ℕ → ℕ
-zero + n = n
-(suc m) + n = suc (m + n)
-```
+
+    _+_ : ℕ → ℕ → ℕ
+    zero + n = n
+    (suc m) + n = suc (m + n)
+
 
 Let's unpack this definition.  Addition is an infix operator.  It is
 written with underbars where the arguments go, hence its name is
@@ -453,11 +453,11 @@ _ =
 
 Once we have defined addition, we can define multiplication
 as repeated addition:
-```
-_*_ : ℕ → ℕ → ℕ
-zero    * n  =  zero
-(suc m) * n  =  n + (m * n)
-```
+
+    _*_ : ℕ → ℕ → ℕ
+    zero    * n  =  zero
+    (suc m) * n  =  n + (m * n)
+
 Computing `m * n` returns the sum of `m` copies of `n`.
 
 Again, rewriting turns the definition into two familiar equations:
@@ -532,13 +532,10 @@ Define exponentiation, which is given by the following equations:
 
 Check that `3 ^ 4` is `81`.
 
-```
-_^_ : ℕ → ℕ → ℕ
-_^_ m zero = 1
-_^_ m (suc n) = m * (m ^ n)
-```
 
-
+    _^_ : ℕ → ℕ → ℕ
+    _^_ m zero = 1
+    _^_ m (suc n) = m * (m ^ n)
 
 ## Monus
 
@@ -549,12 +546,12 @@ subtraction to naturals is called _monus_ (a twist on _minus_).
 
 Monus is our first use of a definition that uses pattern
 matching against both arguments:
-```
-_∸_ : ℕ → ℕ → ℕ
-m     ∸ zero   =  m
-zero  ∸ suc n  =  zero
-suc m ∸ suc n  =  m ∸ n
-```
+
+    _∸_ : ℕ → ℕ → ℕ
+    m     ∸ zero   =  m
+    zero  ∸ suc n  =  zero
+    suc m ∸ suc n  =  m ∸ n
+
 We can do a simple analysis to show that all the cases are covered.
 
   * Consider the second argument.
@@ -640,10 +637,10 @@ so write `m + n + p` to mean `(m + n) + p`.
 
 In Agda the precedence and associativity of infix operators
 needs to be declared:
-```
-infixl 6  _+_  _∸_
-infixl 7  _*_
-```
+
+    infixl 6  _+_  _∸_
+    infixl 7  _*_
+
 This states operators `_+_` and `_∸_` have precedence level 6,
 and operator `_*_` has precedence level 7.
 Addition and monus bind less tightly than multiplication
@@ -906,11 +903,11 @@ a program this simple, using `C-c C-c` to split cases can be helpful.
 ## More pragmas
 
 Including the lines
-```
-{-# BUILTIN NATPLUS _+_ #-}
-{-# BUILTIN NATTIMES _*_ #-}
-{-# BUILTIN NATMINUS _∸_ #-}
-```
+
+    {-# BUILTIN NATPLUS _+_ #-}
+    {-# BUILTIN NATTIMES _*_ #-}
+    {-# BUILTIN NATMINUS _∸_ #-}
+
 tells Agda that these three operators correspond to the usual ones,
 and enables it to perform these computations using the corresponding
 Haskell operators on the arbitrary-precision integer type.
@@ -970,10 +967,29 @@ represents a positive natural, and represent zero by `⟨⟩ O`.
 Confirm that these both give the correct answer for zero through four.
 
 ```
+-- Some helpers. Not needed now but might be useful in later chapters.
+concat : Bin → Bin → Bin
+concat b₁ ⟨⟩ = b₁
+concat ⟨⟩ b₂ = b₂
+concat b₁ (b₂ O) = concat b₁ b₂ O
+concat b₁ (b₂ I) = concat b₁ b₂ I
+
+flip : Bin → Bin
+flip ⟨⟩ = ⟨⟩
+flip (b O) = concat (⟨⟩ O) (flip b)
+flip (b I) = concat (⟨⟩ I) (flip b)
+
+strip : Bin → Bin
+strip b = flip (go (flip b))
+  where
+    go : Bin → Bin
+    go ⟨⟩ = ⟨⟩
+    go (b O) = go b
+    go full@(b I) = full
+
 -- Increment binary numbers, without leading zeros.
 inc : Bin → Bin
-inc ⟨⟩ = ⟨⟩                 -- Base case
-inc (⟨⟩ I) = ⟨⟩ I O         -- If MSB is set, unset & add new set lead bit
+inc ⟨⟩ = ⟨⟩ I               -- Base case, this seems kinda dumb
 inc (MSBs O) = MSBs I       -- Inductive: flip zero bits and stop
 inc (MSBs I) = (inc MSBs) O --            flip one bits and keep flipping
 
