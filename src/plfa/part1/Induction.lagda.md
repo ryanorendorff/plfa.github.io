@@ -27,9 +27,10 @@ and some operations upon them.  We also import a couple of new operations,
 `cong`, `sym`, and `_≡⟨_⟩_`, which are explained below:
 ```
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl; cong; sym)
+open Eq using (_≡_; refl; _≢_; cong; sym)
 open Eq.≡-Reasoning using (begin_; _≡⟨⟩_; _≡⟨_⟩_; _∎)
-open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_)
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_; _∸_; _^_)
+open import plfa.part1.Naturals using (Bin; ⟨⟩; _O; _I; inc; to; from)
 ```
 
 
@@ -80,7 +81,18 @@ Give an example of an operator that has an identity and is
 associative but is not commutative.
 
 ```
--- Your code goes here
+-- Pair of operators:
+--   max and min over ℕ or ℝ extended with ±∞
+--   square matrix addition and multiplication
+--   function composition and pair (`f + g = λ x → f x + g x`) when `+` is
+--     defined over some commutative monoid M and all functions End(M)
+
+-- Operator that is associative but not commutative: string concatenation ++
+--   identity: ""
+--     str + "" ≡ str
+--     "" + str ≡ str
+--   associative: (strₘ ++ strₙ) ++ strₚ ≡ strₘ ++ (strₙ ++ strₚ)
+--   not commutative: strₘ ++ strₙ ≢ strₙ ++ strₘ
 ```
 
 
@@ -704,7 +716,7 @@ first four days using a finite story of creation, as
 [earlier]({{ site.baseurl }}/Naturals/#finite-creation).
 
 ```
--- Your code goes here
+-- Not doing this, seems like a lot of text
 ```
 
 ## Associativity with rewrite
@@ -870,7 +882,8 @@ just apply the previous results which show addition
 is associative and commutative.
 
 ```
--- Your code goes here
++-swap : (m n p : ℕ) → m + (n + p) ≡ n + (m + p)
++-swap m n p rewrite sym (+-assoc m n p) | +-comm m n | +-assoc n m p = refl
 ```
 
 
@@ -884,6 +897,20 @@ for all naturals `m`, `n`, and `p`.
 
 ```
 -- Your code goes here
+*-distrib-+ : (m n p : ℕ) → (m + n) * p ≡ m * p + n * p
+*-distrib-+ zero n p = refl
+*-distrib-+ (suc m) n p =
+  begin
+    (suc m + n) * p
+  ≡⟨⟩
+    p + (m + n) * p
+  ≡⟨ cong (p +_ ) (*-distrib-+ m n p) ⟩
+    p + (m * p + n * p)
+  ≡⟨ sym (+-assoc p (m * p) (n * p)) ⟩
+    p + m * p + n * p
+  ≡⟨⟩
+    suc m * p + n * p
+  ∎
 ```
 
 
@@ -896,7 +923,20 @@ Show multiplication is associative, that is,
 for all naturals `m`, `n`, and `p`.
 
 ```
--- Your code goes here
+*-assoc : (m n p : ℕ) → (m * n) * p ≡ m * (n * p)
+*-assoc zero n p = refl
+*-assoc (suc m) n p =
+  begin
+    suc m * n * p
+  ≡⟨⟩
+    (n + m * n) * p
+  ≡⟨ *-distrib-+ n (m * n) p ⟩
+    n * p + m * n * p
+  ≡⟨ cong ((n * p) +_) (*-assoc m n p) ⟩
+    n * p + m * (n * p)
+  ≡⟨⟩
+    suc m * (n * p)
+  ∎
 ```
 
 
@@ -910,7 +950,34 @@ for all naturals `m` and `n`.  As with commutativity of addition,
 you will need to formulate and prove suitable lemmas.
 
 ```
--- Your code goes here
+n*zero : (n : ℕ) → n * 0 ≡ 0
+n*zero zero = refl
+n*zero (suc n) = n*zero n
+
+*-suc : (n m : ℕ) → n * suc m ≡ n + n * m
+*-suc zero m = refl
+*-suc (suc n) m = cong suc (inner n m)
+  where
+    inner : (n m : ℕ) → m + n * suc m ≡ n + (m + n * m)
+    inner n m rewrite             -- m + n * suc m
+        *-suc n m                 -- m + (n + n * m)
+      | sym (+-assoc m n (n * m)) -- (m + n) + n * m
+      | +-comm m n                -- (n + m) + n * m
+      | +-assoc n m (n * m)       -- n + (m + n * m)
+      = refl
+
+*-comm : (m n : ℕ) → m * n ≡ n * m
+*-comm zero n = sym (n*zero n)
+*-comm (suc m) n =
+  begin
+    suc m * n
+  ≡⟨⟩
+    n + m * n
+  ≡⟨ cong (n +_) (*-comm m n) ⟩
+    n + n * m
+  ≡⟨  sym (*-suc n m) ⟩
+    n * suc m
+  ∎
 ```
 
 
@@ -923,7 +990,11 @@ Show
 for all naturals `n`. Did your proof require induction?
 
 ```
--- Your code goes here
+-- Does not really require induction (hypothesis not used, only definition
+-- of ∸)
+0∸n≡0 : (n : ℕ) → 0 ∸ n ≡ 0
+0∸n≡0 zero = refl
+0∸n≡0 (suc n) = refl
 ```
 
 
@@ -936,7 +1007,10 @@ Show that monus associates with addition, that is,
 for all naturals `m`, `n`, and `p`.
 
 ```
--- Your code goes here
+∸-+-assoc : (m n p : ℕ) → (m ∸ n) ∸ p ≡ m ∸ (n + p)
+∸-+-assoc m zero p = refl
+∸-+-assoc zero (suc n) p = 0∸n≡0 p
+∸-+-assoc (suc m) (suc n) p = ∸-+-assoc m n p
 ```
 
 
@@ -950,6 +1024,53 @@ Show the following three laws
 
 for all `m`, `n`, and `p`.
 
+```
+-- Basic lemmas needed for +*^ exercise
+n+0≡n : (n : ℕ) → n + 0 ≡ n
+n+0≡n zero = refl
+n+0≡n (suc n) = cong suc (n+0≡n n)
+
+n*0≡0 : (n : ℕ) → n * 0 ≡ 0
+n*0≡0 zero = refl
+n*0≡0 (suc n) = n*0≡0 n
+
+n*1≡n : (n : ℕ) → n * 1 ≡ n
+n*1≡n zero = refl
+n*1≡n (suc n) = cong suc (n*1≡n n)
+
+n^0≡1 : (n : ℕ) → n ^ 0 ≡ 1
+n^0≡1 n = refl
+
+
+^-distrib-+ : (m n p : ℕ) → m ^ (n + p) ≡ (m ^ n) * (m ^ p)
+^-distrib-+ m n zero rewrite n+0≡n n | n*1≡n (m ^ n) = refl
+^-distrib-+ m n (suc p) rewrite
+    +-suc n p
+  | ^-distrib-+ m n p
+  | sym (*-assoc m (m ^ n) (m ^ p))
+  | *-comm m (m ^ n)
+  | *-assoc (m ^ n) m (m ^ p)
+  = refl
+
+^-distribʳ-* : (m n p : ℕ) → (m * n) ^ p ≡ (m ^ p) * (n ^ p)
+^-distribʳ-* m n zero = refl
+^-distribʳ-* m n (suc p) rewrite
+    ^-distribʳ-* m n p
+  | *-assoc m n ((m ^ p) * (n ^ p))
+  | sym (*-assoc n (m ^ p) (n ^ p))
+  | *-comm n (m ^ p)
+  | *-assoc (m ^ p) n (n ^ p)
+  | sym (*-assoc m (m ^ p) (n * (n ^ p)))
+  = refl
+
+^-distribˡ-* : (m n p : ℕ) → m ^ (n * p) ≡ (m ^ n) ^ p
+^-distribˡ-* m n zero rewrite n*0≡0 n = refl
+^-distribˡ-* m n (suc p) rewrite
+    *-suc n p
+  | ^-distrib-+ m n (n * p)
+  | ^-distribˡ-* m n p
+  = refl
+```
 
 #### Exercise `Bin-laws` (stretch) {#Bin-laws}
 
@@ -972,7 +1093,42 @@ over bitstrings:
 For each law: if it holds, prove; if not, give a counterexample.
 
 ```
--- Your code goes here
+-- This works only because we have defined two zeros: ⟨⟩ and ⟨⟩ 0.
+from-inc≡suc-from : (b : Bin) → from (inc b) ≡ suc (from b)
+from-inc≡suc-from ⟨⟩ = refl
+from-inc≡suc-from (b O) rewrite
+    n+0≡n (from b)
+  | +-comm (from b + from b) 1
+  = refl
+from-inc≡suc-from (b I) rewrite
+    n+0≡n (from b)
+  | n+0≡n (from (inc b))
+  | from-inc≡suc-from b
+  | +-comm 1 (from b)
+  | sym (+-assoc (from b) (from b) 1)
+  = refl
+
+open import Relation.Nullary using (¬_)
+open import Data.Empty using (⊥-elim)
+open import Data.Product using (Σ; _,_; ∃; Σ-syntax; ∃-syntax)
+
+-- I do not know where to find this in the standard library....
+postulate
+  ∃¬-implies-¬∀ : ∀ {A : Set} {B : A → Set}
+    → ∃[ x ] (¬ B x)
+    --------------
+    → ¬ (∀ x → B x)
+
+-- to-from-inverse : ∃[ b ] (to (from b) ≢ b)
+to-from-inverse : ¬ ((b : Bin) → to (from b) ≡ b)
+to-from-inverse = ∃¬-implies-¬∀ (⟨⟩ , (λ ()))
+
+from-to-inverse : (n : ℕ) → from (to n) ≡ n
+from-to-inverse zero = refl
+from-to-inverse (suc n) rewrite
+    from-inc≡suc-from (to n)
+  | from-to-inverse n
+  = refl
 ```
 
 
