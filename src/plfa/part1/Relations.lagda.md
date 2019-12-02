@@ -17,9 +17,9 @@ the next step is to define relations, such as _less than or equal_.
 
 ```
 import Relation.Binary.PropositionalEquality as Eq
-open Eq using (_≡_; refl; cong)
-open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Nat.Properties using (+-comm)
+open Eq using (_≡_; refl; cong; subst; trans; sym)
+open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
+open import Data.Nat.Properties using (+-comm; *-comm)
 ```
 
 
@@ -234,13 +234,24 @@ partial order but not a total order.
 Give an example of a preorder that is not a partial order.
 
 ```
--- Your code goes here
+-- Preorder: reflexive and transitive
+-- Partial Order: Preorder + anti-symmetric
+-- Example preorder that is not partial order: https://math.stackexchange.com/questions/2217949/simple-examples-of-preorders-that-are-not-partial-orders/2218022#2218022
+--  Space of x ↦ |x|, where x ≾ y ⇔ |x| ≤ |y|
+--    This is basically distance from the origin
+--    reflexivity: n ≾ n ⇔ |n| ≤ |n|
+--    transitivity: x ≾ y ⇔ |x| ≤ |y| ∧ y ≾ z ⇔ |y| ≤ |z|
+--                  ⇒ x ≾ z ⇔ |x| ≤ |z|
+--      intuitively: distance from the origin
+--   ¬anti-symmetric: |-1| ≤ |1| ∧ |1| ≤ |-1| ⇏ -1 ≡ 1
 ```
 
 Give an example of a partial order that is not a total order.
 
+
 ```
--- Your code goes here
+-- Total order: partial order that is total
+-- Subsets by inclusion.
 ```
 
 ## Reflexivity
@@ -353,7 +364,9 @@ The above proof omits cases where one argument is `z≤n` and one
 argument is `s≤s`.  Why is it ok to omit them?
 
 ```
--- Your code goes here
+-- Because they are inaccessible patterns: defining z≤n in the first pattern
+-- forces m to zero. In order to construct n ≤ 0, n must also be zero, which
+-- means that the only constructor that can make 0 ≤ 0 is z≤n
 ```
 
 
@@ -543,7 +556,27 @@ transitivity proves `m + p ≤ n + q`, as was to be shown.
 Show that multiplication is monotonic with regard to inequality.
 
 ```
--- Your code goes here
+*-monoʳ-≤ : ∀ (n p q : ℕ)
+  → p ≤ q
+    -------------
+  → n * p ≤ n * q
+*-monoʳ-≤ zero p q p≤q = z≤n
+*-monoʳ-≤ (suc n) p q p≤q = +-mono-≤ p q (n * p) (n * q) p≤q (*-monoʳ-≤ n p q p≤q)
+
+-- These two proofs are basically the same as the + case but using the *
+-- property varients instead.
+*-monoˡ-≤ : ∀ (m n p : ℕ)
+  → m ≤ n
+    -------------
+  → m * p ≤ n * p
+*-monoˡ-≤ m n p m≤n rewrite *-comm m p | *-comm n p = *-monoʳ-≤ p m n m≤n
+
+*-mono-≤ : ∀ (m n p q : ℕ)
+  → m ≤ n
+  → p ≤ q
+    -------------
+  → m * p ≤ n * q
+*-mono-≤ m n p q m≤n p≤q = ≤-trans (*-monoˡ-≤ m n p m≤n) (*-monoʳ-≤ n p q p≤q)
 ```
 
 
@@ -590,7 +623,25 @@ exploiting the corresponding properties of inequality.
 Show that strict inequality is transitive.
 
 ```
--- Your code goes here
+inv-s<s : ∀ {m n : ℕ}
+  → suc m < suc n
+    -------------
+  → m < n
+inv-s<s (s<s m<n) = m<n
+
+inv-z<1 : ∀ {m : ℕ}
+  → m < 1
+    --------
+  → m ≡ zero
+inv-z<1 z<s = refl
+
+<-trans : {m n p : ℕ}
+  → m < n
+  → n < p
+    ------------
+  → m < p
+<-trans z<s (s<s _) = z<s
+<-trans (s<s m<n) (s<s n<p) = s<s (<-trans m<n n<p)
 ```
 
 #### Exercise `trichotomy` (practice) {#trichotomy}
@@ -608,7 +659,31 @@ similar to that used for totality.
 [negation]({{ site.baseurl }}/Negation/).)
 
 ```
--- Your code goes here
+data Trichotomy (m n : ℕ) : Set where
+
+  ineq< :
+      m < n
+      ---------
+    → Trichotomy m n
+
+  eq :
+      m ≡ n
+      ----------
+    → Trichotomy m n
+
+  ineq> :
+    n < m
+    ---------
+    → Trichotomy m n
+
+<-total : ∀ (m n : ℕ) → Trichotomy m n
+<-total zero zero = eq refl
+<-total zero (suc n) = ineq< z<s
+<-total (suc m) zero = ineq> z<s
+<-total (suc m) (suc n) with <-total m n
+...                        | ineq< m<n = ineq< (s<s m<n)
+...                        | eq m≡n = eq (cong suc m≡n)
+...                        | ineq> m>n = ineq> (s<s m>n)
 ```
 
 #### Exercise `+-mono-<` (practice) {#plus-mono-less}
@@ -618,6 +693,25 @@ As with inequality, some additional definitions may be required.
 
 ```
 -- Your code goes here
++-monoʳ-< : ∀ (n p q : ℕ)
+  → p < q
+    -------------
+  → n + p < n + q
++-monoʳ-< zero p q p<q = p<q
++-monoʳ-< (suc n) p q p<q = s<s (+-monoʳ-< n p q p<q)
+
++-monoˡ-< : ∀ (m n p : ℕ)
+  → m < n
+    -------------
+  → m + p < n + p
++-monoˡ-< m n p m<n rewrite +-comm m p | +-comm n p = +-monoʳ-< p m n m<n
+
++-mono-< : ∀ (m n p q : ℕ)
+  → m < n
+  → p < q
+    -------------
+  → m + p < n + q
++-mono-< m n p q m<n p<q = <-trans (+-monoˡ-< m n p m<n) (+-monoʳ-< n p q p<q)
 ```
 
 #### Exercise `≤-iff-<` (recommended) {#leq-iff-less}
@@ -625,7 +719,22 @@ As with inequality, some additional definitions may be required.
 Show that `suc m ≤ n` implies `m < n`, and conversely.
 
 ```
--- Your code goes here
+open import plfa.part1.Isomorphism using (_⇔_)
+
+≤-iff-< : {m n : ℕ} → (suc m ≤ n) ⇔ (m < n)
+≤-iff-< {m} {n} =
+  record
+    { to = to m n
+    ; from = from m n
+    }
+  where
+    to : (m n : ℕ) → suc m ≤ n → m < n
+    to zero _ (s≤s sucm≤n) = z<s
+    to (suc m) (suc n) (s≤s sucm≤n) = s<s (to m n sucm≤n)
+
+    from : (m n : ℕ) → m < n → suc m ≤ n
+    from zero _ z<s = s≤s z≤n
+    from (suc m) (suc n) (s<s m<n) = s≤s (from m n m<n)
 ```
 
 #### Exercise `<-trans-revisited` (practice) {#less-trans-revisited}
@@ -636,6 +745,25 @@ the fact that inequality is transitive.
 
 ```
 -- Your code goes here
+≤-suc : (n : ℕ) → n ≤ suc n
+≤-suc n = +-monoˡ-≤ zero 1 n z≤n
+
+-- Simply put in a goal and then give the hints
+--   { ≤-suc ≤-iff-< ≤-trans }
+-- and Agda will auto solve for you! ☺
+-- The gist here is to convert m < n → suc m < n (and also with n<p), use
+-- ≤-trans to combine them (using the helper ≤-suc) and then convert suc m ≤
+-- p → m < p.
+<-trans-revisited : {m n p : ℕ}
+  → m < n
+  → n < p
+    ------------
+  → m < p
+<-trans-revisited {m} {n} {p} m<n n<p =
+  _⇔_.to ≤-iff-< (
+    ≤-trans (_⇔_.from ≤-iff-< m<n)
+            (≤-trans (≤-suc n) (_⇔_.from ≤-iff-< n<p))
+  )
 ```
 
 
@@ -742,7 +870,23 @@ successor of the sum of two even numbers, which is even.
 Show that the sum of two odd numbers is even.
 
 ```
--- Your code goes here
+e+o≡o : ∀ {m n : ℕ}
+  → odd m
+  → even n
+    -----------
+  → odd (m + n)
+e+o≡o em om = o+e≡o em om
+
+o+o≡e : ∀ {m n : ℕ}
+  → odd m
+  → odd n
+    -----------
+  → even (m + n)
+o+o≡e (suc em₁) (suc en₂) = (subst even reoder-sucs) (suc (suc (e+e≡e em₁ en₂)))
+  where
+    reoder-sucs : {n m : ℕ} → 2 + (n + m) ≡ suc (n + suc m)
+    reoder-sucs {zero} {m} = refl
+    reoder-sucs {suc n} {m} = cong suc reoder-sucs
 ```
 
 #### Exercise `Bin-predicates` (stretch) {#Bin-predicates}
@@ -794,7 +938,134 @@ and back is the identity:
 properties of `One`.)
 
 ```
--- Your code goes here
+open import plfa.part1.Naturals using (Bin; _I; _O; ⟨⟩; inc; to; from; concat; flip; strip)
+open import plfa.part1.Induction using (n+0≡n; from-inc≡suc-from )
+
+-- I am not sure what they mean here. I am assuming `inc` always produces
+-- binary numbers starting with 1, as that is the base case.
+data One : Bin → Set where
+  one :
+      -------------
+      One (⟨⟩ I)
+
+  suc : {b : Bin}
+    → One b
+      -------------
+    → One (inc b)
+
+data Can : Bin → Set where
+  zero :
+       -------------
+      Can (⟨⟩ O)
+
+  leading1 : {b : Bin}
+    → One b
+        -------------
+    → Can b
+
+inc-can : {b : Bin} → Can b → Can (inc b)
+inc-can zero = leading1 one
+inc-can (leading1 x) = leading1 (suc x)
+
+can-to : {n : ℕ} → Can (to n)
+can-to {zero} = zero
+can-to {suc n} = inc-can (can-to {n})
+
+one-to-from : {b : Bin} → One b → to (from b) ≡ b
+one-to-from one = refl
+one-to-from (suc {b} ob) rewrite from-inc≡suc-from b | one-to-from ob = refl
+
+can-to-from : {b : Bin} → Can b → to (from b) ≡ b
+can-to-from zero = refl
+can-to-from (leading1 {b} x) = one-to-from x
+
+-- Defining One without inc?
+data One′ : Bin → Set where
+  one :
+       -------------
+       One′ (⟨⟩ I)
+
+  lsbO : {b : Bin}
+    → One′ (b)
+      -------------
+    → One′ (b O)
+
+  lsb1 : {b : Bin}
+    → One′ (b)
+       -------------
+    → One′ (b I)
+
+data Can′ : Bin → Set where
+  zero :
+      -------------
+      Can′ (⟨⟩ O)
+
+  leading1 : {b : Bin}
+    → One′ b
+      -------------
+    → Can′ b
+
+
+x+x≡2*x : (n : ℕ) → n + n ≡ 2 * n
+x+x≡2*x zero = refl
+x+x≡2*x (suc n) rewrite n+0≡n n = refl
+
+yt : (b : Bin) → to (from b + from b) ≡ to (2 * from b)
+yt b = cong to (x+x≡2*x (from b))
+
+yt2 : (n : ℕ) → 1 ≤ n → to (2 * n) ≡ to n O
+yt2 .(suc _) (s≤s 1<n) = {!!}
+
+shiftO : (b : Bin) → One b → One (b O)
+shiftO .(⟨⟩ I) one = suc one
+shiftO .(inc _) (suc {b} oneb) = suc (suc (shiftO b oneb))
+
+shiftI : (b : Bin) → One b → One (b I)
+shiftI .(⟨⟩ I) one = suc (suc one)
+shiftI .(inc _) (suc {b} oneb) = suc (suc (shiftI b oneb))
+
+inc-one′ : {b : Bin} → One′ b → One′ (inc b)
+inc-one′ {.(⟨⟩ I)} one = lsbO one
+inc-one′ {.(_ O)} (lsbO oneb) = lsb1 oneb
+inc-one′ {.(_ I)} (lsb1 oneb) = lsbO (inc-one′ oneb)
+
+one′-conversion : {b : Bin} → One′ b → One b
+one′-conversion .{⟨⟩ I} one = one
+one′-conversion .{_ O} (lsbO {b} oneb) = shiftO b (one′-conversion {b} oneb)
+one′-conversion .{_ I} (lsb1 {b} oneb) = shiftI b (one′-conversion {b} oneb)
+
+one-conversion : {b : Bin} → One b → One′ b
+one-conversion .{⟨⟩ I} one = one
+one-conversion .{inc _} (suc {b} oneb) = inc-one′ (one-conversion {b} oneb)
+
+one′-conv-id : {b : Bin} → (d : One′ b) → one-conversion (one′-conversion (d)) ≡ d
+one′-conv-id one = refl
+one′-conv-id (lsbO one′) = {!!}
+one′-conv-id (lsb1 one′) = {!!}
+
+
+inc-can′ : {b : Bin} → Can′ b → Can′ (inc b)
+inc-can′ zero = leading1 one
+inc-can′ (leading1 x) = leading1 (inc-one′ x)
+
+can-to′ : (n : ℕ) → Can′ (to n)
+can-to′ zero = zero
+can-to′ (suc n) = inc-can′ (can-to′ n)
+
+
+r : (b : Bin) → to (from b + from b) ≡ (b O)
+r ⟨⟩ = refl
+r (b O) rewrite n+0≡n (from b) | sym (r b) = {!!}
+r (b I) = {!!}
+
+one-to-from′ : {b : Bin} → One′ b → to (from b) ≡ b
+one-to-from′ {b O} (lsbO oneb) = {!!}
+one-to-from′ {b I} oneb = {!!}
+-- one-to-from (suc {b} ob) rewrite from-inc≡suc-from b | one-to-from ob = refl
+
+can-to-from′ : {b : Bin} → Can′ b → to (from b) ≡ b
+can-to-from′ zero = refl
+can-to-from′ (leading1 x) = one-to-from′ x
 ```
 
 ## Standard library
