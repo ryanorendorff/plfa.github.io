@@ -19,7 +19,7 @@ the next step is to define relations, such as _less than or equal_.
 import Relation.Binary.PropositionalEquality as Eq
 open Eq using (_≡_; refl; cong; subst; trans; sym)
 open import Data.Nat using (ℕ; zero; suc; _+_; _*_)
-open import Data.Nat.Properties using (+-comm; *-comm)
+open import Data.Nat.Properties using (+-comm; *-comm; +-assoc)
 ```
 
 
@@ -939,10 +939,11 @@ properties of `One`.)
 
 ```
 open import plfa.part1.Naturals using (Bin; _I; _O; ⟨⟩; inc; to; from; concat; flip; strip)
-open import plfa.part1.Induction using (n+0≡n; from-inc≡suc-from )
+open import plfa.part1.Induction using (n+0≡n; from-inc≡suc-from)
 
 -- I am not sure what they mean here. I am assuming `inc` always produces
--- binary numbers starting with 1, as that is the base case.
+-- binary numbers starting with 1, as that is the base case and here we aer
+-- only passing in numbers that must start with 1 to begin with.
 data One : Bin → Set where
   one :
       -------------
@@ -1006,13 +1007,6 @@ data Can′ : Bin → Set where
     → Can′ b
 
 
-x+x≡2*x : (n : ℕ) → n + n ≡ 2 * n
-x+x≡2*x zero = refl
-x+x≡2*x (suc n) rewrite n+0≡n n = refl
-
-yt : (b : Bin) → to (from b + from b) ≡ to (2 * from b)
-yt b = cong to (x+x≡2*x (from b))
-
 yt2 : (n : ℕ) → 1 ≤ n → to (2 * n) ≡ to n O
 yt2 .(suc _) (s≤s 1<n) = {!!}
 
@@ -1052,14 +1046,41 @@ can-to′ : (n : ℕ) → Can′ (to n)
 can-to′ zero = zero
 can-to′ (suc n) = inc-can′ (can-to′ n)
 
+from2b : (b : Bin) → from b + from b ≡ 2 * (from b)
+from2b ⟨⟩ = refl
+from2b (b O) rewrite n+0≡n (from b) | +-assoc (from b) (from b) 0 | n+0≡n (from b) = refl
+from2b (b I) rewrite n+0≡n (from b) | +-assoc (from b) (from b) (1 + 0) | +-assoc (from b) (from b + 1) 0 | +-assoc (from b) 1 0 | n+0≡n 1 = refl
+
+tofrom2b : (b : Bin) → to (from b + from b) ≡ to (2 * (from b))
+tofrom2b b = cong to (from2b b)
+
+toinc : (n : ℕ) → to (suc n) ≡ inc (to n)
+toinc n = refl
+
+one-1<n : (b : Bin) → One b → 1 ≤ from b
+one-1<n .(⟨⟩ I) one = s≤s z≤n
+one-1<n .(inc _) (suc {b} oneb) rewrite from-inc≡suc-from b = s≤s z≤n
+
+-- We can't make these two because the zero case does not work
+to2n : (n : ℕ) → (b : Bin) → to n ≡ b → One′ b → to (2 * n) ≡ to n O
+to2n+1 : (n : ℕ) → (b : Bin) → to n ≡ b → One′ b → to (n + suc n) ≡ to n I
+
+to2n zero b ton≡b onen = {!!}
+to2n (suc n) (b O) ton≡b (lsbO onen) rewrite n+0≡n n | to2n+1 n b {!-d!} {!!} = refl
+to2n (suc n) (.⟨⟩ I) ton≡b one = {!!}
+to2n (suc n) (b I) ton≡b (lsb1 onen) = {!!}
+-- to2n (suc n) 1≤n rewrite n+0≡n n | sym (toinc n) | to2n+1 n {!!} = refl
+-- to2n+1 (suc n) 1≤n = {!!}
 
 r : (b : Bin) → to (from b + from b) ≡ (b O)
 r ⟨⟩ = refl
 r (b O) rewrite n+0≡n (from b) | sym (r b) = {!!}
 r (b I) = {!!}
 
+
+-- note: n + (n + 0) is the normalized form of 2 * n
 one-to-from′ : {b : Bin} → One′ b → to (from b) ≡ b
-one-to-from′ {b O} (lsbO oneb) = {!!}
+one-to-from′ {b O} (lsbO {c} oneb) = {!-m to2n!}
 one-to-from′ {b I} oneb = {!!}
 -- one-to-from (suc {b} ob) rewrite from-inc≡suc-from b | one-to-from ob = refl
 
