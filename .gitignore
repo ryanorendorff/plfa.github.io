@@ -23,3 +23,6 @@ Gemfile.lock
 
 ## Emacs files
 auto/
+
+## Nix files/directories
+result*
