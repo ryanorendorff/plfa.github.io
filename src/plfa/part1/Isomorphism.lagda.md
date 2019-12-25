@@ -440,15 +440,16 @@ open ≲-Reasoning
 
 Show that every isomorphism implies an embedding.
 ```
-postulate
-  ≃-implies-≲ : ∀ {A B : Set}
-    → A ≃ B
-      -----
-    → A ≲ B
-```
-
-```
--- Your code goes here
+≃-implies-≲ : ∀ {A B : Set}
+  → A ≃ B
+    -----
+  → A ≲ B
+≃-implies-≲  A≃B =
+  record
+    { to = to A≃B
+    ; from = from A≃B
+    ; from∘to = from∘to A≃B
+    }
 ```
 
 #### Exercise `_⇔_` (practice) {#iff}
@@ -463,7 +464,26 @@ record _⇔_ (A B : Set) : Set where
 Show that equivalence is reflexive, symmetric, and transitive.
 
 ```
--- Your code goes here
+⇔-refl : ∀ {A : Set} → A ⇔ A
+⇔-refl =
+  record
+    { to = λ x → x
+    ; from = λ y → y
+    }
+
+⇔-sym : ∀ {A B : Set} → A ⇔ B → B ⇔ A
+⇔-sym A⇔B =
+  record
+    { to = _⇔_.from A⇔B
+    ; from = _⇔_.to A⇔B
+    }
+
+⇔-trans : ∀ {A B C : Set} → A ⇔ B → B ⇔ C → A ⇔ C
+⇔-trans A⇔B B⇔C =
+  record
+    { to = λ z → _⇔_.to B⇔C (_⇔_.to A⇔B z)
+    ; from = λ z → _⇔_.from A⇔B (_⇔_.from B⇔C z)
+    }
 ```
 
 #### Exercise `Bin-embedding` (stretch) {#Bin-embedding}
@@ -482,11 +502,27 @@ which satisfy the following property:
     from (to n) ≡ n
 
 Using the above, establish that there is an embedding of `ℕ` into `Bin`.
+
 ```
--- Your code goes here
+import plfa.part1.Naturals as N
+open N using (Bin; _I; _O)
+open import plfa.part1.Induction using (from-to-inverse)
+
+Bin-embedding : ℕ ≲ Bin
+Bin-embedding =
+  record
+    { to = N.to
+    ; from = N.from
+    ; from∘to = from-to-inverse
+    }
 ```
 
 Why do `to` and `from` not form an isomorphism?
+
+```
+-- See plfa.part1.Induction to-from-inverse function, which proves that the
+-- to∘from inverse does not work for all inputs.
+```
 
 ## Standard library
 
