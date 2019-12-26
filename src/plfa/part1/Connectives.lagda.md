@@ -35,7 +35,7 @@ open Eq using (_≡_; refl)
 open Eq.≡-Reasoning
 open import Data.Nat using (ℕ)
 open import Function using (_∘_)
-open import plfa.part1.Isomorphism using (_≃_; _≲_; extensionality)
+open import plfa.part1.Isomorphism using (_≃_; _≲_; extensionality; _⇔_)
 open plfa.part1.Isomorphism.≃-Reasoning
 ```
 
@@ -239,6 +239,14 @@ is isomorphic to `(A → B) × (B → A)`.
 
 ```
 -- Your code goes here
+⇔≃× : {A B : Set} → A ⇔ B ≃ (A → B) × (B → A)
+⇔≃× =
+  record
+    { to = λ x → ⟨ _⇔_.to x , _⇔_.from x ⟩
+    ; from = λ y → record { to = proj₁ y ; from = proj₂ y }
+    ; from∘to = λ{ record { to = to ; from = from } → refl}
+    ; to∘from = λ{ ⟨ x , y ⟩ → refl}
+    }
 ```
 
 
@@ -434,7 +442,14 @@ commutative and associative _up to isomorphism_.
 Show sum is commutative up to isomorphism.
 
 ```
--- Your code goes here
+⊎-comm : {A B : Set} → A ⊎ B ≃ B ⊎ A
+⊎-comm =
+  record
+    { to = λ{ (inj₁ x) → inj₂ x ; (inj₂ x) → inj₁ x}
+    ; from = λ{ (inj₁ x) → inj₂ x ; (inj₂ x) → inj₁ x}
+    ; from∘to = λ{ (inj₁ x) → refl ; (inj₂ y) → refl}
+    ; to∘from = λ{ (inj₁ y) → refl ; (inj₂ x) → refl}
+    }
 ```
 
 #### Exercise `⊎-assoc` (practice)
@@ -442,7 +457,25 @@ Show sum is commutative up to isomorphism.
 Show sum is associative up to isomorphism.
 
 ```
--- Your code goes here
+⊎-assoc : {A B C : Set} → (A ⊎ B) ⊎ C ≃ A ⊎ (B ⊎ C)
+⊎-assoc =
+  record
+    { to = λ{ (inj₁ (inj₁ a)) → inj₁ a
+            ; (inj₁ (inj₂ b)) → inj₂ (inj₁ b)
+            ; (inj₂ c) → inj₂ (inj₂ c)
+            }
+    ; from = λ{ (inj₁ a) → inj₁ (inj₁ a)
+              ; (inj₂ (inj₁ b)) → inj₁ (inj₂ b)
+              ; (inj₂ (inj₂ c)) → inj₂ c
+              }
+    ; from∘to = λ{ (inj₁ (inj₁ x)) → refl
+                 ; (inj₁ (inj₂ x)) → refl
+                 ; (inj₂ x) → refl
+                 }
+    ; to∘from = λ{ (inj₁ x) → refl
+                 ; (inj₂ (inj₁ x)) → refl
+                 ; (inj₂ (inj₂ x)) → refl}
+    }
 ```
 
 ## False is empty
@@ -505,7 +538,14 @@ is the identity of sums _up to isomorphism_.
 Show empty is the left identity of sums up to isomorphism.
 
 ```
--- Your code goes here
+⊥-identityˡ : {A : Set} → ⊥ ⊎ A ≃ A
+⊥-identityˡ =
+  record
+    { to = λ{ (inj₂ a) → a}
+    ; from = inj₂
+    ; from∘to = λ{ (inj₂ a) → refl}
+    ; to∘from = λ a → refl
+    }
 ```
 
 #### Exercise `⊥-identityʳ` (practice)
@@ -513,7 +553,15 @@ Show empty is the left identity of sums up to isomorphism.
 Show empty is the right identity of sums up to isomorphism.
 
 ```
--- Your code goes here
+⊥-identityʳ : {A : Set} → A ⊎ ⊥ ≃ A
+⊥-identityʳ {A} =
+  ≃-begin
+    (A ⊎ ⊥)
+  ≃⟨ ⊎-comm ⟩
+    (⊥ ⊎ A)
+  ≃⟨ ⊥-identityˡ ⟩
+    A
+  ≃-∎
 ```
 
 ## Implication is function {#implication}
@@ -737,14 +785,22 @@ one of these laws is "more true" than the other.
 
 Show that the following property holds:
 ```
-postulate
-  ⊎-weak-× : ∀ {A B C : Set} → (A ⊎ B) × C → A ⊎ (B × C)
+-- postulate
+--   ⊎-weak-× : ∀ {A B C : Set} → (A ⊎ B) × C → A ⊎ (B × C)
 ```
 This is called a _weak distributive law_. Give the corresponding
 distributive law, and explain how it relates to the weak version.
 
 ```
--- Your code goes here
+⊎-weak-× : ∀ {A B C : Set} → (A ⊎ B) × C → A ⊎ (B × C)
+⊎-weak-× ⟨ inj₁ a , _ ⟩ = inj₁ a
+⊎-weak-× ⟨ inj₂ b , c ⟩ = inj₂ ⟨ b , c ⟩
+
+-- This corresponds to the following distribution law.
+--   (a + b) * c = a * c + b * c
+-- The reason this is the weak version is because the `a * c` term is missing.
+-- This is because if `C` appeared twice in the ⊎-weak-× law then there would be
+-- a case with two different possible implementations.
 ```
 
 
@@ -752,13 +808,20 @@ distributive law, and explain how it relates to the weak version.
 
 Show that a disjunct of conjuncts implies a conjunct of disjuncts:
 ```
-postulate
-  ⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
+-- postulate
+--   ⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
 ```
 Does the converse hold? If so, prove; if not, give a counterexample.
 
 ```
--- Your code goes here
+⊎×-implies-×⊎ : ∀ {A B C D : Set} → (A × B) ⊎ (C × D) → (A ⊎ C) × (B ⊎ D)
+⊎×-implies-×⊎ (inj₁ ⟨ a , b ⟩) = ⟨ inj₁ a , inj₁ b ⟩
+⊎×-implies-×⊎ (inj₂ ⟨ c , d ⟩) = ⟨ inj₂ c , inj₂ d ⟩
+
+-- The converse does not hold. Here is a counter example, which contains pieces
+-- of both products in the solution but not the total product.
+-- ¬×⊎-implies-⊎× : {A B C D : Set} → (A ⊎ C) × (B ⊎ D) → (A × B) ⊎ (C × D)
+-- ¬×⊎-implies-⊎× ⟨ inj₁ a , inj₂ d ⟩ () -- Cannot form A × B or C × D
 ```
 
 
